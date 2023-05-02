@@ -1,0 +1,40 @@
+library(GenomicFeatures)
+ec <- makeTxDbFromGFF("/scratch/project_******/6hr/gencode.v42.chr_patch_hapl_scaff.annotation.gtf", format= "gtf")
+exonsByGene<-exonsBy(ec,by="gene")
+fls<-list.files("/scratch/project_******/6hr",pattern="sorted.bam$",full=TRUE)
+bai <- paste(fls,".bai")
+library("Rsamtools")
+bamLst <- BamFileList(fls)
+library( "GenomicAlignments" )
+library(BiocParallel)
+se<-summarizeOverlaps(features=exonsByGene,read=bamLst,mode="Union",singleEnd=FALSE,ignore.strand=TRUE,fragments=TRUE)
+
+head(assay(se))
+colSums(assay(se))
+
+rowData(se)
+head(colnames(se))
+countData<-assay(se)
+head(countData)
+mydata <- assay(se)
+write.table(mydata, "coldata_6hr.txt", sep = "\t")
+
+colData_6hr <- read.table("/scratch/project_******/6hr/coldata_6hr.txt", sep = '\t', header = TRUE)
+
+6hr_Design=data.frame(row.names=colnames(colData_6hr),condition=c("Control","Control","Control","Treatment","Treatment","Treatment"),libType=c("paired-end","paired-end","paired-end","paired-end","paired-end","paired-end"))
+#Validation of the design matrix 
+all(rownames(6hr_Design) == colnames(colData_6hr))
+
+6hr_Design$condition <- factor(6hr_Design$condition)
+6hr_Design$libType <- factor(6hr_Design$libType)
+
+library("DESeq2")
+ddsFullCountTable <- DESeqDataSetFromMatrix(countData= colData_6hr,design = ~condition, colData = colData_thz)
+
+DEGs <- DESeq(ddsFullCountTable, quiet = FALSE)
+#alpha is the pvalue 
+res <- results( DEGs, parallel = FALSE,alpha = 0.05, pAdjustMethod = "BH")
+write.table( as.data.frame(res), file=/scratch/project_******/6hr/6hr_DEGsgenes.txt", sep = "\t" )
+
+summary(res)
+plotMA(res)
