@@ -1,0 +1,48 @@
+sudo apt update
+sudo apt install fastqc
+sudo apt install bowtie2
+sudo apt install samtools
+sudo apt install trim_galore
+sudo apt-get install wget
+
+#unzip fasta files
+gzip -d Fresh_S1_R1_001.fastq.gz Fresh_S1_R2_001.fastq.gz 6hr_4-HC_S3_R1_001.fastq.gz 6hr_4-HC_S3_R2_001.fastq.gz 6hr_Ctrl_S2_R1_001.fastq.gz 6hr_Ctrl_S2_R2_001.fastq.gz
+
+#quality check of fasta files
+fastqc Fresh_S1_R1_001.fastq Fresh_S1_R2_001.fastq 6hr_Ctrl_S2_R1_001_val_1.fq 6hr_Ctrl_S2_R2_001_val_2.fq 6hr_4-HC_S3_R1_001_val_1.fq 6hr_4-HC_S3_R2_001_val_2.fq
+
+#trim fasta files
+echo $PATH
+export PATH=$PATH:/usr/bin/trim_galore
+trim_galore --paired --phred33 -q 20 -o /media/volume/trimmed/Fresh_S1_R1_001.fastq Fresh_S1_R2_001.fastq
+trim_galore --paired --phred33 -q 20 -o /media/volume/trimmed/6hr_Ctrl_S2_R1_001.fastq 6hr_Ctrl_S2_R2_001.fastq
+trim_galore --paired --phred33 -q 20 -o /media/volume/trimmed/6hr_4-HC_S3_R1_001.fastq 6hr_4-HC_S3_R2_001.fastq
+
+#Download Pre-build Index file GRCh38 (can also download other versions) for mapping
+wget https://genome-idx.s3.amazonaws.com/bt/GRCh38_noalt_as.zip
+export BOWTIE2_INDEXED=/media/volume/trimmed
+
+#Bowtie2 Mapping
+bowtie2 -x GRCh38_noalt_as -1 /media/volume/cycrawdata/Fresh_S1_R1_001.fastq -2 /media/volume/cycrawdata/Fresh_S1_R2_001.fastq --no-unal -S Fresh_S1.sam
+bowtie2 -x GRCh38_noalt_as -1 /media/volume/cycrawdata/6hr_Ctrl_S2_R1_001.fastq -2 /media/volume/cycrawdata/6hr_Ctrl_S2_R2_001.fastq --no-unal -S 6hr_Ctrl_S2.sam
+bowtie2 -x GRCh38_noalt_as -1 /media/volume/cycrawdata/6hr_4-HC_S3_R1_001.fastq -2 /media/volume/cycrawdata/6hr_4-HC_S3_R2_001.fastq --no-unal -S 6hr_4-HC_S3.sam
+
+#Convert SAM file to BAM
+samtools view -bS Fresh_S1.sam > Fresh_S1.bam
+samtools view -bS 6hr_Ctrl_S2.sam > 6hr_Ctrl_S2.bam
+samtools view -bS 6hr_4-HC_S3.sam > 6hr_4-HC_S3.bam
+
+#Sort the bam file
+samtools sort Fresh_S1.bam Fresh_S1-sorted.bam
+samtools sort 6hr_Ctrl_S2.bam 6hr_Ctrl_S2-sorted.bam
+samtools sort 6hr_4-HC_S3.bam 6hr_4-HC_S3-sorted.bam
+
+#Index the bam file
+samtools index Fresh_S1-sorted.bam
+samtools index 6hr_Ctrl_S2-sorted.bam
+samtools index 6hr_4-HC_S3-sorted.bam
+
+#bamCoverage
+bamCoverage -b Fresh_S1-sorted.bam -o Fresh_S1-sorted.bw
+bamCoverage -b 6hr_Ctrl_S2-sorted.bam -o 6hr_Ctrl_S2-sorted.bw
+bamCoverage -b 6hr_4-HC_S3-sorted.bam -o 6hr_4-HC_S3-sorted.bw
