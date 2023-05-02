@@ -1,0 +1,73 @@
+library(GenomicFeatures)
+library("Rsamtools")
+library( "GenomicAlignments" )
+library("NOISeq")
+library("biomaRt")
+library("tidyverse")
+
+head(assay(se))
+colSums(assay(se))
+
+rowData(se)
+head(colnames(se))
+countData<-assay(se)
+head(countData)
+mydata <- assay(se)
+write.table(mydata, "coldata_6hr.txt", sep = "\t")
+
+colData_6hr <- read.table("coldata1_6hr.txt", sep = '\t', header = TRUE)
+head(colData_6hr)
+
+sink('6hrnoiseq.doc', append=TRUE)
+myfactors <- data.frame(group = c("Control", "Treatment"))
+
+myData <- readData(data=colData_6hr, factor=myfactors)
+
+myresults <- noiseq(myData, factor = "group", k = 0, norm = "n", pnr = 0.2, nss = 5, v = 0.02, lc = 1, replicates = "no")
+myresults
+save(myresults, file = "sixhrResults.RData")
+myresults@method
+myresults@k
+myresults@lc
+myresults@factor
+myresults@comparison
+head(myresults@results[[1]])
+myresults.deg = degenes(myresults, q = 0.8, M = NULL)
+head(myresults.deg[[1]])
+DE.plot(myresults, q = 0.8, graphic = "expr", log.scale = TRUE)
+write.csv(myresults.deg, file="DEGs_myresults.csv")
+
+#Can use any of the two types of normalization (RPKM & UQUA) depending on the data
+myRPKM = rpkm(assayData(myData)$exprs, k = 0, lc = 1)
+head(myRPKM)
+mynoiseqrpkm <- noiseq(myData, factor = "group", k = 0.5, norm = "rpkm", pnr = 0.2, nss = 5, v = 0.02, lc = 1, replicates = "no")
+mynoiseqrpkm
+save(mynoiseqrpkm, file = "sixhrrpkm.RData")
+head(mynoiseqrpkm@results[[1]])
+head(mynoiseqrpkm@results)
+mynoiseqrpkm.deg = degenes(mynoiseqrpkm, q = 0.8, M = NULL)
+head(mynoiseqrpkm.deg[[1]])
+DE.plot(mynoiseqrpkm, q = 0.8, graphic = "expr", log.scale = TRUE)
+write.csv(mynoiseqrpkm.deg, file="DEGs_mynoiseqrpkm.csv")
+
+mynoiseqrpkm1.deg = degenes(mynoiseqrpkm, q = 0.5, M = NULL)
+head(mynoiseqrpkm1.deg[[1]])
+DE.plot(mynoiseqrpkm, q = 0.5, graphic = "expr", log.scale = TRUE)
+write.csv(mynoiseqrpkm1.deg, file="DEGs_mynoiseqrpkm1.csv")
+
+myUQUA = uqua(assayData(myData)$exprs, lc = 0.5, k = 0)
+head(myUQUA)
+mynoiseququa <- noiseq(myData, factor = "group", k = 0.5, norm = "uqua", pnr = 0.2, nss = 5, v = 0.02, lc = 1, replicates = "no")
+mynoiseququa
+save(mynoiseququa, file = "sixhruqua.RData")
+head(mynoiseququa@results[[1]])
+head(mynoiseququa@results)
+mynoiseququa.deg = degenes(mynoiseququa, q = 0.8, M = NULL)
+head(mynoiseququa.deg[[1]])
+DE.plot(mynoiseququa, q = 0.8, graphic = "expr", log.scale = TRUE)
+write.csv(mynoiseququa.deg, file="DEGs_mynoiseququa.csv")
+
+mynoiseququa1.deg = degenes(mynoiseququa, q = 0.5, M = NULL)
+head(mynoiseququa1.deg[[1]])
+DE.plot(mynoiseququa, q = 0.5, graphic = "expr", log.scale = TRUE)
+write.csv(mynoiseququa1.deg, file="DEGs_mynoiseququa1.csv")
